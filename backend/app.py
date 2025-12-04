@@ -1,10 +1,16 @@
 from flask import Flask, render_template, request
 from sqlalchemy.orm import Session
+import sys
+import os
+
+# Add parent directory to path to allow imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from backend.database import Base, engine, SessionLocal
 from backend.models import ChatMessage
 import requests
 
-app = Flask(__name__, template_folder="../frontend", static_folder="../frontend")
+app = Flask(__name__, template_folder="../frontend", static_folder="../frontend/static")
 
 # Create DB if needed
 Base.metadata.create_all(bind=engine)
