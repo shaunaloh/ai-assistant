@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>No-JS AI Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Assistant (No JavaScript)</h1>
+
+    <div class="chat-box">
+        {% for m in messages %}
+            <div class="message user">{{ m.user_input }}</div>
+            <div class="message bot">{{ m.bot_response }}</div>
+        {% endfor %}
+    </div>
+
+    <form method="POST" action="/chat">
+        <textarea name="prompt" placeholder="Type your message…" required></textarea>
+        <button type="submit">Send</button>
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+</div>
+
+</body>
+</html>
