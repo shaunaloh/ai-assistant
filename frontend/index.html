@@ -9,7 +9,7 @@
 <body>
 
 <div class="container">
-    <h1>AI Assistant (No JavaScript)</h1>
+    <h1>Shauna's AI Assistant</h1>
 
     <div class="chat-box">
         {% for m in messages %}
@@ -30,3 +30,81 @@
 
 </body>
 </html>
+
+<script>
+// AJAX submit to avoid full page reload and prevent double sends
+const form = document.querySelector('form');
+const textarea = document.querySelector('textarea[name="prompt"]');
+const button = document.querySelector('button[type="submit"]');
+const chatBox = document.querySelector('.chat-box');
+
+function renderMessages(messages) {
+    chatBox.innerHTML = messages.map(m => {
+        const user = `<div class="message user">${escapeHtml(m.user_input)}</div>`;
+        const bot = `<div class="message bot">${escapeHtml(m.bot_response)}</div>`;
+        return user + bot;
+    }).join('\n');
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function escapeHtml(unsafe) {
+    if (unsafe == null) return '';
+    return unsafe
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const prompt = textarea.value.trim();
+    if (!prompt) return;
+
+    button.disabled = true;
+    const oldText = button.textContent;
+    button.textContent = 'Sending...';
+
+    const start = performance.now();
+    try {
+        const resp = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({ prompt })
+        });
+
+        const data = await resp.json();
+        if (data.error) {
+            // show error below form
+            let errEl = document.querySelector('.error');
+            if (!errEl) {
+                errEl = document.createElement('p');
+                errEl.className = 'error';
+                form.after(errEl);
+            }
+            errEl.textContent = data.error;
+        } else {
+            renderMessages(data.messages);
+            textarea.value = '';
+            const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+            console.log('LLM roundtrip (client):', elapsed + 's');
+        }
+    } catch (err) {
+        console.error('Request failed', err);
+        let errEl = document.querySelector('.error');
+        if (!errEl) {
+            errEl = document.createElement('p');
+            errEl.className = 'error';
+            form.after(errEl);
+        }
+        errEl.textContent = 'Network or server error. See console.';
+    } finally {
+        button.disabled = false;
+        button.textContent = oldText;
+    }
+});
+</script>
