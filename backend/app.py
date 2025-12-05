@@ -68,7 +68,19 @@ def chat():
                 elapsed = None
             print(f"requests.elapsed: {elapsed}")
 
-            bot_output = response.json().get("response")
+            # Try to parse JSON; if parsing fails log response details for debugging
+            try:
+                data = response.json()
+                bot_output = data.get("response")
+            except Exception as decode_err:
+                # Log useful debugging info: status, headers, and truncated body
+                body = response.text
+                print("Failed to parse JSON from Ollama response:", decode_err)
+                print(f"Ollama status: {response.status_code}")
+                print(f"Ollama content-type: {response.headers.get('content-type')}")
+                print("Ollama body (truncated 2000 chars):\n" + (body[:2000] if body else '<empty>'))
+                # Return an informative error to frontend
+                raise Exception(f"Invalid JSON from Ollama (status {response.status_code}). See server logs for body.")
 
         except Exception as e:
             print(f"Error calling Ollama: {e}")

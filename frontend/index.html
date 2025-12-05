@@ -12,9 +12,21 @@
     <h1>Shauna's AI Assistant</h1>
 
     <div class="chat-box">
+        {% if not messages %}
+        <div class="message bot welcome">
+            <div class="avatar">🤖</div>
+            <div class="bubble">If you have any questions, I'm here to help!</div>
+        </div>
+        {% endif %}
         {% for m in messages %}
-            <div class="message user">{{ m.user_input }}</div>
-            <div class="message bot">{{ m.bot_response }}</div>
+        <div class="message user">
+            <div class="avatar">🙂</div>
+            <div class="bubble">{{ m.user_input }}</div>
+        </div>
+        <div class="message bot">
+            <div class="avatar">🤖</div>
+            <div class="bubble">{{ m.bot_response }}</div>
+        </div>
         {% endfor %}
     </div>
 
@@ -40,8 +52,16 @@ const chatBox = document.querySelector('.chat-box');
 
 function renderMessages(messages) {
     chatBox.innerHTML = messages.map(m => {
-        const user = `<div class="message user">${escapeHtml(m.user_input)}</div>`;
-        const bot = `<div class="message bot">${escapeHtml(m.bot_response)}</div>`;
+            const user = `
+                <div class="message user">
+                    <div class="avatar">🙂</div>
+                    <div class="bubble">${escapeHtml(m.user_input)}</div>
+                </div>`;
+            const bot = `
+                <div class="message bot">
+                    <div class="avatar">🤖</div>
+                    <div class="bubble">${escapeHtml(m.bot_response)}</div>
+                </div>`;
         return user + bot;
     }).join('\n');
     chatBox.scrollTop = chatBox.scrollHeight;
