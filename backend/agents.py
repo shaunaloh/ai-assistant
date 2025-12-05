@@ -58,6 +58,9 @@ def load_household_data(dataset_type: str) -> pd.DataFrame:
             df.columns = new_columns
             df = df.loc[:, df.columns != '']
             
+            # Clean up column names - replace Median1/ with Median
+            df.columns = [col.replace('Median1/', 'Median') for col in df.columns]
+            
             # Remove the sub-header row
             df = df.iloc[1:].reset_index(drop=True)
             
@@ -69,38 +72,6 @@ def load_household_data(dataset_type: str) -> pd.DataFrame:
             for col in df.columns:
                 if col != 'Year':
                     df[col] = pd.to_numeric(df[col], errors='coerce')
-                    
-        elif dataset_type == "expenditure":
-            df = pd.read_csv("data/household_expenditure.csv", skiprows=10)
-            # Similar processing for expenditure
-            subheaders = df.iloc[0].fillna('')
-            new_columns = []
-            for i, col in enumerate(df.columns):
-                subheader = str(subheaders.iloc[i]).strip()
-                
-                if col.startswith('Unnamed') and subheader and subheader != 'nan':
-                    # For unnamed columns, use the parent column name + subheader
-                    parent_col = None
-                    for j in range(i-1, -1, -1):
-                        if not df.columns[j].startswith('Unnamed'):
-                            parent_col = df.columns[j]
-                            break
-                    if parent_col:
-                        new_columns.append(f"{parent_col} - {subheader}")
-                    else:
-                        new_columns.append(subheader)
-                elif subheader and subheader != 'nan' and subheader != '':
-                    new_columns.append(f"{col} - {subheader}")
-                else:
-                    new_columns.append(col)
-            
-            df.columns = new_columns
-            df = df.loc[:, df.columns != '']
-            df = df.iloc[1:].reset_index(drop=True)
-            
-            # Convert numeric columns
-            for col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
         else:
             return None
         
@@ -234,20 +205,19 @@ def create_visualization(df: pd.DataFrame, viz_type: str, dataset_name: str) -> 
         return f"Error creating visualization: {str(e)}"
 
 def singstat_agent(query: str) -> str:
-    """Handles household data queries using local CSV files - analyzes and visualizes income/expenditure data."""
+    """Handles household income data queries using local CSV files - analyzes and visualizes income data."""
     
     # Determine what the user wants
     def determine_intent(user_query: str) -> dict:
         """Use LLM to determine user's intent for data analysis."""
-        prompt = f"""Analyze this query about Singapore household data and determine:
-1. Dataset: "income" or "expenditure"
-2. Task: "visualize" (always use this for graphs/plots/charts/trends over time), "summary" (statistics only), "correlation" (correlation analysis only)
-3. Plot type: "line" (for trends/time series), "bar" (for comparisons), or "correlation" (for correlation heatmap)
+        prompt = f"""Analyze this query about Singapore household income data and determine:
+1. Task: "visualize" (always use this for graphs/plots/charts/trends over time), "summary" (statistics only), "correlation" (correlation analysis only)
+2. Plot type: "line" (for trends/time series), "bar" (for comparisons), or "correlation" (for correlation heatmap)
 
 User query: {user_query}
 
-Respond in format: dataset|task|plot_type
-Example: income|visualize|line
+Respond in format: task|plot_type
+Example: visualize|line
 Note: If user asks about trends over time, use visualize|line"""
 
         try:
@@ -257,18 +227,17 @@ Note: If user asks about trends over time, use visualize|line"""
             )
             parts = response.text.strip().lower().split('|')
             return {
-                'dataset': parts[0] if len(parts) > 0 else 'income',
-                'task': parts[1] if len(parts) > 1 else 'visualize',
-                'plot_type': parts[2] if len(parts) > 2 else 'line'
+                'task': parts[0] if len(parts) > 0 else 'visualize',
+                'plot_type': parts[1] if len(parts) > 1 else 'line'
             }
         except Exception as e:
             print(f"Error determining intent: {str(e)}")
-            return {'dataset': 'income', 'task': 'visualize', 'plot_type': 'line'}
+            return {'task': 'visualize', 'plot_type': 'line'}
     
     intent = determine_intent(query)
     
-    # Load the appropriate dataset
-    df = load_household_data(intent['dataset'])
+    # Load household income dataset
+    df = load_household_data('income')
     
     if df is None:
         return "Failed to load household data"
@@ -276,7 +245,7 @@ Note: If user asks about trends over time, use visualize|line"""
     # Perform the requested task
     if intent['task'] == 'visualize' and intent['plot_type'] != 'none':
         # Generate visualization
-        plot_result = create_visualization(df, intent['plot_type'], intent['dataset'])
+        plot_result = create_visualization(df, intent['plot_type'], 'income')
         
         # Add basic analysis text with proper separator
         analysis_text = ""
@@ -287,7 +256,7 @@ Note: If user asks about trends over time, use visualize|line"""
             numeric_cols = [col for col in numeric_cols if col != 'Year']
             
             if len(numeric_cols) > 0:
-                analysis_text = f"\n\n📈 Key Insights for {intent['dataset'].title()}:\n"
+                analysis_text = f"\n\n📈 Key Insights for Income:\n"
                 for col in numeric_cols[:3]:
                     if df[col].notna().sum() > 1:
                         first_val = df[col].dropna().iloc[0]
@@ -516,7 +485,7 @@ def llm_router(query):
     prompt = f"""You are a routing assistant. Given a user query, determine which agent should handle it.
 
 Available agents:
-1. "singstat" - Handles household data queries (e.g., income, expenditure) from SingStat
+1. "singstat" - Handles household income data queries from SingStat
 2. "datagov" - Handles weather forecast queries from Data.gov.sg
 
 User query: {query}
