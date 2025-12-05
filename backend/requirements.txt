@@ -4,3 +4,9 @@ requests
 flask-cors
 python-dotenv
 google-genai
+langchain
+langgraph
+folium
+matplotlib
+pandas
+seaborn

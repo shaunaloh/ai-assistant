@@ -8,6 +8,8 @@
 </head>
 <body>
 
+<div class="image-section"></div>
+
 <div class="container">
     <h1>Shauna's AI Assistant</h1>
 
@@ -15,7 +17,7 @@
         {% if not messages %}
         <div class="message bot welcome">
             <div class="avatar">🤖</div>
-            <div class="bubble">If you have any questions, I'm here to help!</div>
+            <div class="bubble">Hi There! I'm here to help you look into weather forecast and household data and provide actionable insights. Start asking!</div>
         </div>
         {% endif %}
         {% for m in messages %}
@@ -51,19 +53,50 @@ const button = document.querySelector('button[type="submit"]');
 const chatBox = document.querySelector('.chat-box');
 
 function renderMessages(messages) {
-    chatBox.innerHTML = messages.map(m => {
-            const user = `
-                <div class="message user">
-                    <div class="avatar">🙂</div>
-                    <div class="bubble">${escapeHtml(m.user_input)}</div>
-                </div>`;
-            const bot = `
-                <div class="message bot">
-                    <div class="avatar">🤖</div>
-                    <div class="bubble">${escapeHtml(m.bot_response)}</div>
-                </div>`;
-        return user + bot;
-    }).join('\n');
+    // Always start with welcome message
+    let content = `
+        <div class="message bot welcome">
+            <div class="avatar">🤖</div>
+            <div class="bubble">Hi There! I'm here to help you look into weather forecast and household data and provide actionable insights. Start asking!</div>
+        </div>`;
+    
+    if (messages.length > 0) {
+        content += messages.map(m => {
+                const user = `
+                    <div class="message user">
+                        <div class="avatar">🙂</div>
+                        <div class="bubble">${escapeHtml(m.user_input)}</div>
+                    </div>`;
+                
+                // Check if bot response is a map or plot
+                let botContent;
+                if (m.bot_response && m.bot_response.startsWith('MAP:')) {
+                    const mapFilename = m.bot_response.substring(4);
+                    botContent = `<iframe src="/static/${mapFilename}" width="100%" height="400px" style="border:none; border-radius:8px;"></iframe>`;
+                } else if (m.bot_response && m.bot_response.startsWith('PLOT:')) {
+                    // Check if there's analysis text separated by |TEXT|
+                    const parts = m.bot_response.split('|TEXT|');
+                    const plotFilename = parts[0].substring(5);
+                    const analysisText = parts.length > 1 ? parts[1] : '';
+                    
+                    botContent = `<img src="/static/${plotFilename}" style="max-width:100%; border-radius:8px; margin-bottom:10px;" alt="Data visualization">`;
+                    if (analysisText) {
+                        botContent += `<div style="white-space: pre-line; margin-top:10px;">${escapeHtml(analysisText)}</div>`;
+                    }
+                } else {
+                    botContent = escapeHtml(m.bot_response);
+                }
+                
+                const bot = `
+                    <div class="message bot">
+                        <div class="avatar">🤖</div>
+                        <div class="bubble">${botContent}</div>
+                    </div>`;
+            return user + bot;
+        }).join('\n');
+    }
+    
+    chatBox.innerHTML = content;
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 

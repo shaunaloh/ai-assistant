@@ -1,6 +1,7 @@
 import os
 import sys
 import traceback
+import requests
 
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
@@ -13,6 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from backend.database import Base, engine, SessionLocal
 from backend.models import ChatMessage
+from backend.agents import llm_router, singstat_agent, datagov_agent
 
 # Load environment variables from .env file
 load_dotenv()
@@ -54,14 +56,19 @@ def chat():
                 ], "error": "Prompt is required."})
             return render_template("index.html", messages=messages, error="Prompt is required.")
 
-        # Call LLM using Google Generative AI
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-
-        # Parse the response
-        bot_output = response.text if response.text else "No response from model"
+        # Use the LLM router to determine which agent to use
+        agent = llm_router(prompt)
+        if agent == "singstat":
+            bot_output = singstat_agent(prompt)
+        elif agent == "datagov":
+            bot_output = datagov_agent(prompt)
+        else:
+            # fallback to LLM if agent is unknown
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            bot_output = response.text if response.text else "No response from model"
 
         # Save to DB
         msg = ChatMessage(user_input=prompt, bot_response=bot_output)
@@ -92,6 +99,21 @@ def chat():
         return render_template("index.html", messages=messages, error=f"Server error: {e}")
     finally:
         db.close()
+
+@app.post("/weather")
+def weather():
+    try:
+        # Fetch weather forecast from Data.gov.sg
+        datagov_api_url = "https://api.data.gov.sg/v1/environment/24-hour-weather-forecast"
+        response = requests.get(datagov_api_url)
+        if response.status_code == 200:
+            data = response.json()
+            forecast = data.get("items", [{}])[0].get("general", {}).get("forecast", "No forecast available")
+            return jsonify({"forecast": forecast})
+        else:
+            return jsonify({"error": f"Failed to fetch data from Data.gov.sg. Status code: {response.status_code}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while fetching data: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
