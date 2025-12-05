@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 from sqlalchemy.orm import Session
 import sys
 import os
@@ -13,11 +14,14 @@ from backend.models import ChatMessage
 import requests
 
 app = Flask(__name__, template_folder="../frontend", static_folder="../frontend/static")
+# Enable CORS for all routes
+CORS(app)
 
 # Create DB if needed
 Base.metadata.create_all(bind=engine)
 
-OLLAMA_URL = "http://host.docker.internal:11434/api/generate"
+# Ollama URL: local by default, or set OLLAMA_URL env var for remote Ollama/LLM endpoint
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 # Default model - configurable via env var if you want a faster model
 MODEL = os.environ.get("AI_MODEL", "llama3.2")
 # Limit tokens to keep responses snappy; adjust via env `AI_MAX_TOKENS`
