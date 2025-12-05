@@ -113,7 +113,8 @@ def weather():
         else:
             return jsonify({"error": f"Failed to fetch data from Data.gov.sg. Status code: {response.status_code}"}), 500
     except Exception as e:
-        return jsonify({"error": f"An error occurred while fetching data: {str(e)}"}), 500
+            return jsonify({"error": f"An error occurred while fetching data: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)

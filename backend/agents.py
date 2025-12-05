@@ -27,7 +27,11 @@ def load_household_data(dataset_type: str) -> pd.DataFrame:
     """Load household income or expenditure data from CSV files."""
     try:
         if dataset_type == "income":
-            df = pd.read_csv("data/household_income.csv", skiprows=10)
+            csv_path = os.path.join(os.path.dirname(__file__), "..", "data", "household_income.csv")
+            if not os.path.exists(csv_path):
+                print(f"Warning: Data file not found at {csv_path}")
+                return None
+            df = pd.read_csv(csv_path, skiprows=10)
             
             # First row contains the sub-headers (Average/Median)
             subheaders = df.iloc[0].fillna('')

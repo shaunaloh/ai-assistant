@@ -5,11 +5,9 @@ services:
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/app.py
     envVars:
-      - key: OLLAMA_URL
-        value: http://localhost:11434/api/generate
-      - key: AI_MODEL
-        value: llama3.2
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_MODEL
+        value: gemini-2.0-flash
       - key: AI_MAX_TOKENS
-        value: "150"
-      - key: PORT
-        value: "8000"
+        value: "250"
