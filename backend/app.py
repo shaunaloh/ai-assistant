@@ -1,17 +1,24 @@
+import os
+import sys
+import traceback
+
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from sqlalchemy.orm import Session
-import sys
-import os
-import traceback
-import time
+from google import genai
+from dotenv import load_dotenv
 
-# Add parent directory to path to allow imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the project root directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.database import Base, engine, SessionLocal
 from backend.models import ChatMessage
-import requests
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Initialize the Google Generative AI client with the API key
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 app = Flask(__name__, template_folder="../frontend", static_folder="../frontend/static")
 # Enable CORS for all routes
@@ -19,13 +26,6 @@ CORS(app)
 
 # Create DB if needed
 Base.metadata.create_all(bind=engine)
-
-# Ollama URL: local by default, or set OLLAMA_URL env var for remote Ollama/LLM endpoint
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
-# Default model - configurable via env var if you want a faster model
-MODEL = os.environ.get("AI_MODEL", "llama3.2")
-# Limit tokens to keep responses snappy; adjust via env `AI_MAX_TOKENS`
-DEFAULT_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "250"))
 
 @app.get("/")
 def index():
@@ -54,44 +54,14 @@ def chat():
                 ], "error": "Prompt is required."})
             return render_template("index.html", messages=messages, error="Prompt is required.")
 
-        # Call LLM via Ollama (measure time)
-        try:
-            payload = {"model": MODEL, "prompt": prompt, "stream": False, "max_tokens": DEFAULT_MAX_TOKENS}
-            headers = {"ngrok-skip-browser-warning": "true"}  # bypass ngrok free tier warning
-            start = time.time()
-            response = requests.post(OLLAMA_URL, json=payload, headers=headers, timeout=120)
-            wall_time = time.time() - start
-            print(f"Ollama response status: {response.status_code}, wall_time: {wall_time:.2f}s")
+        # Call LLM using Google Generative AI
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
 
-            try:
-                elapsed = getattr(response.elapsed, "total_seconds", lambda: None)()
-            except Exception:
-                elapsed = None
-            print(f"requests.elapsed: {elapsed}")
-
-            # Try to parse JSON; if parsing fails log response details for debugging
-            try:
-                data = response.json()
-                bot_output = data.get("response")
-            except Exception as decode_err:
-                # Log useful debugging info: status, headers, and truncated body
-                body = response.text
-                print("Failed to parse JSON from Ollama response:", decode_err)
-                print(f"Ollama status: {response.status_code}")
-                print(f"Ollama content-type: {response.headers.get('content-type')}")
-                print("Ollama body (truncated 2000 chars):\n" + (body[:2000] if body else '<empty>'))
-                # Return an informative error to frontend
-                raise Exception(f"Invalid JSON from Ollama (status {response.status_code}). See server logs for body.")
-
-        except Exception as e:
-            print(f"Error calling Ollama: {e}")
-            traceback.print_exc()
-            messages = db.query(ChatMessage).all()
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({"messages": [
-                    {"user_input": m.user_input, "bot_response": m.bot_response} for m in messages
-                ], "error": f"LLM error: {e}"})
-            return render_template("index.html", messages=messages, error=f"LLM error: {e}")
+        # Parse the response
+        bot_output = response.text if response.text else "No response from model"
 
         # Save to DB
         msg = ChatMessage(user_input=prompt, bot_response=bot_output)
@@ -122,5 +92,6 @@ def chat():
         return render_template("index.html", messages=messages, error=f"Server error: {e}")
     finally:
         db.close()
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)

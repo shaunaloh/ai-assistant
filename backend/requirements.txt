@@ -2,3 +2,5 @@ flask
 sqlalchemy
 requests
 flask-cors
+python-dotenv
+google-genai
