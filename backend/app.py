@@ -57,8 +57,9 @@ def chat():
         # Call LLM via Ollama (measure time)
         try:
             payload = {"model": MODEL, "prompt": prompt, "stream": False, "max_tokens": DEFAULT_MAX_TOKENS}
+            headers = {"ngrok-skip-browser-warning": "true"}  # bypass ngrok free tier warning
             start = time.time()
-            response = requests.post(OLLAMA_URL, json=payload, timeout=120)
+            response = requests.post(OLLAMA_URL, json=payload, headers=headers, timeout=120)
             wall_time = time.time() - start
             print(f"Ollama response status: {response.status_code}, wall_time: {wall_time:.2f}s")
 
