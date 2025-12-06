@@ -1,5 +1,9 @@
 # AI Assistant for Singapore Weather & Household Income Analysis
 
+## 🌐 Live Demo
+
+**Access the application here:** [https://ai-assistant-bfys.onrender.com](https://ai-assistant-bfys.onrender.com)
+
 ## Problem Statement
 
 In Singapore's tropical climate, weather conditions can change rapidly, and understanding forecast patterns is crucial for daily planning. Additionally, tracking household income trends over time provides valuable insights for policy-making and public understanding of economic progress.
