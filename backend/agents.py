@@ -389,6 +389,9 @@ def generate_weather_map() -> str:
         # Create a dictionary for quick forecast lookup
         forecast_dict = {f.get("area"): f.get("forecast") for f in forecasts}
         
+        # Track unique forecasts for legend
+        unique_forecasts = set()
+        
         # Add markers for each area
         for area in area_metadata:
             area_name = area.get("name")
@@ -398,6 +401,7 @@ def generate_weather_map() -> str:
             
             if lat and lon and area_name in forecast_dict:
                 forecast = forecast_dict[area_name]
+                unique_forecasts.add(forecast)
                 color = weather_colors.get(forecast, "gray")
                 
                 folium.CircleMarker(
@@ -409,6 +413,22 @@ def generate_weather_map() -> str:
                     fillColor=color,
                     fillOpacity=0.6
                 ).add_to(singapore_map)
+        
+        # Add legend to map
+        legend_html = '''
+        <div style="position: fixed; 
+                    top: 10px; right: 10px; width: 200px; 
+                    background-color: white; border:2px solid grey; z-index:9999; 
+                    font-size:14px; padding: 10px">
+        <p style="margin: 0 0 10px 0; font-weight: bold;">Weather Conditions</p>
+        '''
+        
+        for forecast_type in sorted(unique_forecasts):
+            color = weather_colors.get(forecast_type, "gray")
+            legend_html += f'<p style="margin: 5px 0;"><span style="background-color:{color}; width: 20px; height: 20px; display: inline-block; border-radius: 50%; margin-right: 5px;"></span>{forecast_type}</p>'
+        
+        legend_html += '</div>'
+        singapore_map.get_root().html.add_child(folium.Element(legend_html))
         
         # Save map to file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
