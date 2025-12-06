@@ -4,6 +4,20 @@
 
 **Access the application here:** [https://ai-assistant-bfys.onrender.com](https://ai-assistant-bfys.onrender.com)
 
+### Screenshots
+
+<p align="center">
+  <img src="frontend/static/img/demo_screenshot_1.PNG" alt="Weather Forecast Demo" width="800"/>
+  <br/>
+  <em>Weather forecast with geospatial visualization</em>
+</p>
+
+<p align="center">
+  <img src="frontend/static/img/demo_screenshot_2.PNG" alt="Household Income Analysis Demo" width="800"/>
+  <br/>
+  <em>Household income trend analysis with interactive charts</em>
+</p>
+
 ## Problem Statement
 
 In Singapore's tropical climate, weather conditions can change rapidly, and understanding forecast patterns is crucial for daily planning. Additionally, tracking household income trends over time provides valuable insights for policy-making and public understanding of economic progress.
