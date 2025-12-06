@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Shauna's AI Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
@@ -84,7 +84,8 @@ function renderMessages(messages) {
                         botContent += `<div style="white-space: pre-line; margin-top:10px;">${escapeHtml(analysisText)}</div>`;
                     }
                 } else {
-                    botContent = escapeHtml(m.bot_response);
+                    // Render markdown for general LLM responses
+                    botContent = marked.parse(m.bot_response || '');
                 }
                 
                 const bot = `

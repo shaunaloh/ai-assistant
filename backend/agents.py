@@ -76,6 +76,9 @@ def load_household_data(dataset_type: str) -> pd.DataFrame:
             for col in df.columns:
                 if col != 'Year':
                     df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            # Sort by Year in ascending order (2000 to 2024)
+            df = df.sort_values('Year').reset_index(drop=True)
         else:
             return None
         
@@ -137,13 +140,6 @@ def analyze_data(df: pd.DataFrame, analysis_type: str) -> str:
                     return trends
             return "No time-based data found for trend analysis"
         
-        elif analysis_type == "correlation":
-            # Calculate correlations between numeric columns
-            numeric_df = df.select_dtypes(include=['float64', 'int64'])
-            if numeric_df.shape[1] > 1:
-                corr = numeric_df.corr()
-                return f"Correlation Matrix:\n{corr.to_string()}"
-            return "Not enough numeric columns for correlation analysis"
         
         return "Analysis type not supported"
     except Exception as e:
@@ -170,26 +166,58 @@ def create_visualization(df: pd.DataFrame, viz_type: str, dataset_name: str) -> 
             numeric_cols = [col for col in numeric_cols if col != 'Year']
             
             if len(numeric_cols) > 0:
-                for col in numeric_cols[:3]:  # Plot first 3 numeric columns
+                # Plot all 4 income columns (2 household types x 2 measures each)
+                for col in numeric_cols:
                     if df[col].notna().sum() > 1:
-                        plt.plot(x_axis, df[col], marker='o', label=col, linewidth=2, markersize=6)
+                        plt.plot(x_axis, df[col], marker='o', label=col, linewidth=2, markersize=4)
                 
-                plt.xlabel('Year' if 'Year' in df.columns else 'Index', fontsize=12)
-                plt.ylabel('Value ($)', fontsize=12)
-                plt.title(f'{dataset_name.title()} Trends Over Time', fontsize=14, fontweight='bold')
-                plt.legend(fontsize=10, loc='best')
+                plt.xlabel('Year', fontsize=12)
+                plt.ylabel('Monthly Income ($)', fontsize=12)
+                plt.title(f'{dataset_name.title()} Trends Over Time (2000-2024)', fontsize=14, fontweight='bold')
+                plt.legend(fontsize=9, loc='best')
                 plt.grid(True, alpha=0.3)
                 plt.xticks(rotation=45)
+                # Ensure all years are visible on x-axis
+                if 'Year' in df.columns and len(df) > 10:
+                    # Show every 2-3 years to avoid crowding
+                    step = max(1, len(df) // 10)
+                    plt.xticks(x_axis[::step], rotation=45)
         
         elif viz_type == "bar":
-            # Bar plot
+            # Bar plot comparing average and median for household types
+            # Expected columns: Resident Households - Average, Resident Households - Median, 
+            #                   Resident Employed Households - Average, Resident Employed Households - Median
             numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-            if len(numeric_cols) > 0:
-                df[numeric_cols[0]].head(10).plot(kind='bar', color='steelblue')
-                plt.xlabel('Category')
-                plt.ylabel('Value')
-                plt.title(f'{dataset_name.title()} Bar Chart')
-                plt.xticks(rotation=45, ha='right')
+            income_cols = [col for col in numeric_cols if col != 'Year']
+            
+            if len(income_cols) > 0:
+                # Create grouped bar chart
+                categories = ['Resident Households', 'Resident Employed Households']
+                avg_values = []
+                median_values = []
+                
+                for category in categories:
+                    avg_col = f"{category} - Average"
+                    median_col = f"{category} - Median"
+                    
+                    avg_val = df[avg_col].iloc[0] if avg_col in df.columns else 0
+                    median_val = df[median_col].iloc[0] if median_col in df.columns else 0
+                    
+                    avg_values.append(avg_val)
+                    median_values.append(median_val)
+                
+                x = range(len(categories))
+                width = 0.35
+                
+                plt.bar([i - width/2 for i in x], avg_values, width, label='Average', color='steelblue')
+                plt.bar([i + width/2 for i in x], median_values, width, label='Median', color='coral')
+                
+                plt.xlabel('Household Type', fontsize=12)
+                plt.ylabel('Income ($)', fontsize=12)
+                plt.title(f'{dataset_name.title()} Income Comparison', fontsize=14, fontweight='bold')
+                plt.xticks(x, categories, rotation=15, ha='right')
+                plt.legend()
+                plt.grid(True, alpha=0.3, axis='y')
         
         elif viz_type == "correlation":
             # Correlation heatmap
@@ -216,13 +244,17 @@ def singstat_agent(query: str) -> str:
         """Use LLM to determine user's intent for data analysis."""
         prompt = f"""Analyze this query about Singapore household income data and determine:
 1. Task: "visualize" (always use this for graphs/plots/charts/trends over time), "summary" (statistics only), "correlation" (correlation analysis only)
-2. Plot type: "line" (for trends/time series), "bar" (for comparisons), or "correlation" (for correlation heatmap)
+2. Plot type: "line" (for trends/time series), "bar" (for comparing values in a specific year), or "correlation" (for correlation heatmap)
+3. Year: Extract the specific year if mentioned (e.g., "2020", "2015"), otherwise return "all"
 
 User query: {user_query}
 
-Respond in format: task|plot_type
-Example: visualize|line
-Note: If user asks about trends over time, use visualize|line"""
+Respond in format: task|plot_type|year
+Examples:
+- "show trends over time" → visualize|line|all
+- "compare 2020 data" → visualize|bar|2020
+- "household income in 2015" → visualize|bar|2015
+Note: If user asks about trends over time, use visualize|line|all. If they mention a specific year for comparison, use visualize|bar|YEAR"""
 
         try:
             response = client.models.generate_content(
@@ -232,11 +264,12 @@ Note: If user asks about trends over time, use visualize|line"""
             parts = response.text.strip().lower().split('|')
             return {
                 'task': parts[0] if len(parts) > 0 else 'visualize',
-                'plot_type': parts[1] if len(parts) > 1 else 'line'
+                'plot_type': parts[1] if len(parts) > 1 else 'line',
+                'year': parts[2] if len(parts) > 2 else 'all'
             }
         except Exception as e:
             print(f"Error determining intent: {str(e)}")
-            return {'task': 'visualize', 'plot_type': 'line'}
+            return {'task': 'visualize', 'plot_type': 'line', 'year': 'all'}
     
     intent = determine_intent(query)
     
@@ -245,6 +278,17 @@ Note: If user asks about trends over time, use visualize|line"""
     
     if df is None:
         return "Failed to load household data"
+    
+    # Filter by year if specified
+    if intent.get('year') and intent['year'] != 'all':
+        try:
+            year = int(intent['year'])
+            if 'Year' in df.columns:
+                df = df[df['Year'] == year]
+                if df.empty:
+                    return f"No data found for year {year}"
+        except ValueError:
+            pass  # If year is not a valid number, use all data
     
     # Perform the requested task
     if intent['task'] == 'visualize' and intent['plot_type'] != 'none':
@@ -255,13 +299,13 @@ Note: If user asks about trends over time, use visualize|line"""
         analysis_text = ""
         
         if intent['plot_type'] == 'line' and 'Year' in df.columns:
-            # Add trend analysis
+            # Add trend analysis for all 4 income columns
             numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
             numeric_cols = [col for col in numeric_cols if col != 'Year']
             
             if len(numeric_cols) > 0:
-                analysis_text = f"\n\n📈 Key Insights for Income:\n"
-                for col in numeric_cols[:3]:
+                analysis_text = f"\n\n📈 Key Insights for Household Income (2000-2024):\n"
+                for col in numeric_cols:  
                     if df[col].notna().sum() > 1:
                         first_val = df[col].dropna().iloc[0]
                         last_val = df[col].dropna().iloc[-1]
@@ -276,13 +320,24 @@ Note: If user asks about trends over time, use visualize|line"""
         
         elif intent['plot_type'] == 'bar':
             # Add summary for bar charts
-            numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-            if len(numeric_cols) > 0:
-                col = numeric_cols[0]
-                analysis_text = f"\n\n📊 Summary for {col}:"
-                analysis_text += f"\n• Highest: ${df[col].max():,.2f}"
-                analysis_text += f"\n• Lowest: ${df[col].min():,.2f}"
-                analysis_text += f"\n• Average: ${df[col].mean():,.2f}"
+            year_str = f" for {intent.get('year')}" if intent.get('year') != 'all' else ""
+            analysis_text = f"\n\n📊 Household Income Comparison{year_str}:\n"
+            
+            # Get values for both household types
+            for category in ['Resident Households', 'Resident Employed Households']:
+                avg_col = f"{category} - Average"
+                median_col = f"{category} - Median"
+                
+                if avg_col in df.columns and median_col in df.columns:
+                    avg_val = df[avg_col].iloc[0] if len(df) > 0 else 0
+                    median_val = df[median_col].iloc[0] if len(df) > 0 else 0
+                    
+                    analysis_text += f"\n• {category}:"
+                    analysis_text += f"\n   Average: ${avg_val:,.2f}"
+                    analysis_text += f"\n   Median: ${median_val:,.2f}"
+                    if avg_val > 0 and median_val > 0:
+                        diff_pct = ((avg_val - median_val) / median_val * 100)
+                        analysis_text += f"\n   Difference: {diff_pct:+.1f}%\n"
         
         # Use special separator that frontend can parse
         if plot_result.startswith("PLOT:"):
@@ -385,9 +440,14 @@ def datagov_agent(query: str) -> str:
         prompt = f"""You are a weather forecast assistant. Analyze the user's query and determine which type of weather forecast they want.
 
 Available forecast types:
-1. "2hour" - Very short-term forecast, next 2 hours, immediate weather, current conditions by area, next hour
-2. "4day" - Multi-day outlook, tomorrow, next few days, extended forecast, weekend weather, next day
-3. "24hour" - General/today's weather, default forecast
+1. "2hour" - ONLY for: next 2 hours, next hour, immediate weather, current conditions by area, now, right now
+2. "4day" - For: tomorrow, next day, next few days, next 3 days, next 4 days, this week, weekend, extended forecast, multiple days
+3. "24hour" - For: today, tonight, general weather, no specific timeframe mentioned
+
+Important rules:
+- If query mentions "tomorrow" or "next day" or "next X days" → use "4day"
+- If query mentions "next 2 hours" or "right now" or "current" → use "2hour"
+- If query is general or about today only → use "24hour"
 
 User query: {user_query}
 
