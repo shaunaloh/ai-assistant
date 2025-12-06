@@ -455,12 +455,18 @@ Respond with ONLY one word: either "2hour", "4day", or "24hour"."""
 
         try:
             response = client.models.generate_content(
-                model="models/gemini-1.5-flash",
+                model="models/gemini-2.0-flash",
                 contents=prompt
             )
             forecast_type = response.text.strip().lower()
-            if forecast_type in ["2hour", "4day", "24hour"]:
-                return forecast_type
+            
+            # Clean up the response - sometimes LLM adds extra text
+            if "2hour" in forecast_type:
+                return "2hour"
+            elif "4day" in forecast_type:
+                return "4day"
+            elif "24hour" in forecast_type:
+                return "24hour"
             else:
                 return "24hour"  # default
         except Exception as e:
@@ -483,16 +489,16 @@ Respond with ONLY one word: either "2hour", "4day", or "24hour"."""
                         # Group forecasts by weather condition
                         forecast_dict = {}
                         for f in forecasts:
-                            forecast_type = f.get('forecast', 'Unknown')
+                            weather_condition = f.get('forecast', 'Unknown')
                             area = f.get('area', 'Unknown')
-                            if forecast_type not in forecast_dict:
-                                forecast_dict[forecast_type] = []
-                            forecast_dict[forecast_type].append(area)
+                            if weather_condition not in forecast_dict:
+                                forecast_dict[weather_condition] = []
+                            forecast_dict[weather_condition].append(area)
                         
                         # Format output
                         result = "2-hour forecast:\n"
-                        for forecast_type, areas in forecast_dict.items():
-                            result += f"{forecast_type}: {', '.join(areas[:5])}"
+                        for weather_condition, areas in forecast_dict.items():
+                            result += f"{weather_condition}: {', '.join(areas[:5])}"
                             if len(areas) > 5:
                                 result += f" and {len(areas) - 5} more areas"
                             result += "\n"
