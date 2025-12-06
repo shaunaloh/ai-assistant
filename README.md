@@ -7,13 +7,13 @@
 ### Screenshots
 
 <p align="center">
-  <img src="frontend/static/img/demo_screenshot_1.PNG" alt="Weather Forecast Demo" width="800"/>
+  <img src="frontend/static/img/demo_screenshot_1.png" alt="Weather Forecast Demo" width="800"/>
   <br/>
   <em>Weather forecast with geospatial visualization</em>
 </p>
 
 <p align="center">
-  <img src="frontend/static/img/demo_screenshot_2.PNG" alt="Household Income Analysis Demo" width="800"/>
+  <img src="frontend/static/img/demo_screenshot_2.png" alt="Household Income Analysis Demo" width="800"/>
   <br/>
   <em>Household income trend analysis with interactive charts</em>
 </p>
